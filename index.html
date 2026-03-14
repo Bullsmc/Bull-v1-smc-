@@ -1,0 +1,1896 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BULLS v1 — Professional SMC Trading Indicator</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+
+:root {
+–g: #00FF87;
+–g2: #00C36B;
+–r: #FF3355;
+–y: #FFE000;
+–c: #00D4FF;
+–bg: #040608;
+–bg1: #080C10;
+–bg2: #0C1018;
+–card: #0F1520;
+–card2: #131B28;
+–border: rgba(0,255,135,0.12);
+–border2: rgba(255,255,255,0.06);
+–text: #C8D8E8;
+–muted: #4A5568;
+–white: #F0F6FF;
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+background: var(–bg);
+color: var(–text);
+font-family: ‘Instrument Sans’, sans-serif;
+overflow-x: hidden;
+cursor: none;
+}
+
+/* ── CURSOR ── */
+.cursor {
+position: fixed;
+width: 12px; height: 12px;
+background: var(–g);
+border-radius: 50%;
+pointer-events: none;
+z-index: 9999;
+transform: translate(-50%,-50%);
+transition: transform 0.1s, opacity 0.2s;
+mix-blend-mode: difference;
+}
+
+.cursor-ring {
+position: fixed;
+width: 36px; height: 36px;
+border: 1px solid rgba(0,255,135,0.4);
+border-radius: 50%;
+pointer-events: none;
+z-index: 9998;
+transform: translate(-50%,-50%);
+transition: transform 0.15s ease-out, width 0.2s, height 0.2s;
+}
+
+/* ── NOISE OVERLAY ── */
+body::before {
+content:’’;
+position:fixed; inset:0;
+background-image: url(“data:image/svg+xml,%3Csvg viewBox=‘0 0 200 200’ xmlns=‘http://www.w3.org/2000/svg’%3E%3Cfilter id=‘n’%3E%3CfeTurbulence type=‘fractalNoise’ baseFrequency=‘0.9’ numOctaves=‘4’ stitchTiles=‘stitch’/%3E%3C/filter%3E%3Crect width=‘100%25’ height=‘100%25’ filter=‘url(%23n)’ opacity=‘0.03’/%3E%3C/svg%3E”);
+pointer-events: none;
+z-index: 999;
+opacity: 0.4;
+}
+
+/* ── GRID ── */
+.grid-bg {
+position: fixed; inset: 0;
+background-image:
+linear-gradient(rgba(0,255,135,0.025) 1px, transparent 1px),
+linear-gradient(90deg, rgba(0,255,135,0.025) 1px, transparent 1px);
+background-size: 60px 60px;
+pointer-events: none; z-index: 0;
+}
+
+/* ── NAV ── */
+nav {
+position: fixed; top: 0; left: 0; right: 0;
+z-index: 100;
+display: flex;
+align-items: center;
+justify-content: space-between;
+padding: 20px 60px;
+background: rgba(4,6,8,0.8);
+backdrop-filter: blur(20px);
+border-bottom: 1px solid var(–border);
+}
+
+.nav-logo {
+font-family: ‘Bebas Neue’, sans-serif;
+font-size: 28px;
+letter-spacing: 3px;
+color: var(–g);
+text-decoration: none;
+}
+
+.nav-logo span { color: var(–white); }
+
+.nav-links {
+display: flex;
+gap: 36px;
+list-style: none;
+}
+
+.nav-links a {
+font-family: ‘JetBrains Mono’, monospace;
+font-size: 11px;
+color: var(–muted);
+text-decoration: none;
+letter-spacing: 2px;
+text-transform: uppercase;
+transition: color 0.2s;
+}
+
+.nav-links a:hover { color: var(–g); }
+
+.nav-cta {
+background: var(–g);
+color: #000 !important;
+padding: 10px 24px;
+border-radius: 6px;
+font-weight: 700 !important;
+color: #000;
+}
+
+/* ── SECTIONS ── */
+section {
+position: relative;
+z-index: 1;
+}
+
+/* ══════════════════════════
+HERO
+══════════════════════════ */
+.hero {
+min-height: 100vh;
+display: flex;
+flex-direction: column;
+align-items: center;
+justify-content: center;
+padding: 120px 60px 80px;
+text-align: center;
+overflow: hidden;
+}
+
+/* Radial glow */
+.hero::after {
+content:’’;
+position:absolute;
+top:40%; left:50%;
+transform:translate(-50%,-50%);
+width:900px; height:600px;
+background: radial-gradient(ellipse, rgba(0,255,135,0.06) 0%, transparent 70%);
+pointer-events:none;
+}
+
+/* Live dot */
+.live-pill {
+display: inline-flex;
+align-items: center;
+gap: 8px;
+background: rgba(0,255,135,0.08);
+border: 1px solid rgba(0,255,135,0.25);
+border-radius: 100px;
+padding: 7px 18px;
+font-family: ‘JetBrains Mono’, monospace;
+font-size: 10px;
+color: var(–g);
+letter-spacing: 2px;
+text-transform: uppercase;
+margin-bottom: 40px;
+animation: fadeUp 0.8s ease both;
+}
+
+.live-dot {
+width: 6px; height: 6px;
+background: var(–g);
+border-radius: 50%;
+animation: livepulse 1.5s ease infinite;
+}
+
+@keyframes livepulse {
+0%,100% { box-shadow: 0 0 0 0 rgba(0,255,135,0.7); }
+50% { box-shadow: 0 0 0 6px rgba(0,255,135,0); }
+}
+
+.hero-eyebrow {
+font-family: ‘JetBrains Mono’, monospace;
+font-size: 11px;
+color: var(–muted);
+letter-spacing: 4px;
+text-transform: uppercase;
+margin-bottom: 20px;
+animation: fadeUp 0.8s 0.1s ease both;
+}
+
+h1 {
+font-family: ‘Bebas Neue’, sans-serif;
+font-size: clamp(80px, 14vw, 160px);
+line-height: 0.9;
+letter-spacing: 2px;
+color: var(–white);
+margin-bottom: 8px;
+animation: fadeUp 0.8s 0.2s ease both;
+}
+
+h1 .accent { color: var(–g); }
+h1 .v { font-size: 0.35em; color: var(–c); vertical-align: super; }
+
+.hero-tagline {
+font-size: clamp(16px, 2.5vw, 22px);
+color: var(–muted);
+font-weight: 400;
+max-width: 600px;
+line-height: 1.6;
+margin: 0 auto 48px;
+animation: fadeUp 0.8s 0.3s ease both;
+}
+
+/* Stat strip */
+.stat-strip {
+display: flex;
+gap: 48px;
+justify-content: center;
+align-items: center;
+flex-wrap: wrap;
+margin-bottom: 56px;
+animation: fadeUp 0.8s 0.4s ease both;
+}
+
+.sstat {
+display: flex;
+flex-direction: column;
+align-items: center;
+gap: 4px;
+}
+
+.sstat-n {
+font-family: ‘Bebas Neue’, sans-serif;
+font-size: 42px;
+line-height: 1;
+color: var(–g);
+}
+
+.sstat-n.cy { color: var(–y); }
+.sstat-n.cc { color: var(–c); }
+
+.sstat-l {
+font-family: ‘JetBrains Mono’, monospace;
+font-size: 9px;
+color: var(–muted);
+letter-spacing: 2px;
+text-transform: uppercase;
+}
+
+.stat-div { width:1px; height:40px; background:var(–border2); }
+
+.cta-group {
+display: flex;
+gap: 16px;
+align-items: center;
+justify-content: center;
+animation: fadeUp 0.8s 0.5s ease both;
+}
+
+.btn-primary {
+display: inline-flex;
+align-items: center;
+gap: 10px;
+background: var(–g);
+color: #000;
+font-family: ‘Instrument Sans’, sans-serif;
+font-weight: 700;
+font-size: 15px;
+padding: 16px 36px;
+border-radius: 8px;
+text-decoration: none;
+letter-spacing: 0.3px;
+position: relative;
+overflow: hidden;
+transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.btn-primary:hover {
+transform: translateY(-2px);
+box-shadow: 0 12px 40px rgba(0,255,135,0.3);
+}
+
+.btn-primary::before {
+content:’’;
+position:absolute; inset:0;
+background: linear-gradient(135deg, rgba(255,255,255,0.15) 0%, transparent 50%);
+}
+
+.btn-secondary {
+display: inline-flex;
+align-items: center;
+gap: 10px;
+background: transparent;
+color: var(–text);
+font-family: ‘Instrument Sans’, sans-serif;
+font-weight: 600;
+font-size: 15px;
+padding: 16px 32px;
+border-radius: 8px;
+text-decoration: none;
+border: 1px solid var(–border2);
+transition: border-color 0.2s, color 0.2s;
+}
+
+.btn-secondary:hover {
+border-color: var(–border);
+color: var(–g);
+}
+
+/* Chart */
+.chart-wrap {
+width: 100%;
+max-width: 860px;
+margin: 60px auto 0;
+position: relative;
+animation: fadeUp 0.8s 0.6s ease both;
+}
+
+.chart-frame {
+background: var(–card);
+border: 1px solid var(–border);
+border-radius: 16px;
+overflow: hidden;
+}
+
+.chart-topbar {
+display: flex;
+align-items: center;
+justify-content: space-between;
+padding: 14px 20px;
+border-bottom: 1px solid var(–border2);
+background: rgba(0,0,0,0.3);
+}
+
+.chart-sym {
+display: flex;
+align-items: center;
+gap: 10px;
+}
+
+.btc-icon {
+width: 24px; height: 24px;
+background: #F7931A;
+border-radius: 50%;
+display: flex; align-items: center; justify-content: center;
+font-size: 12px; font-weight: 900; color: white;
+}
+
+.chart-sym-name {
+font-family: ‘JetBrains Mono’, monospace;
+font-size: 12px;
+color: var(–white);
+font-weight: 700;
+}
+
+.chart-sym-tf {
+font-family: ‘JetBrains Mono’, monospace;
+font-size: 10px;
+color: var(–muted);
+}
+
+.chart-price-display {
+font-family: ‘JetBrains Mono’, monospace;
+font-size: 18px;
+font-weight: 700;
+color: var(–white);
+}
+
+.chart-change { color: var(–g); font-size: 12px; }
+
+/* Candle chart SVG-like */
+.chart-body {
+padding: 20px;
+height: 240px;
+position: relative;
+overflow: hidden;
+}
+
+/* EMA lines */
+.ema-line {
+position: absolute;
+left: 0; right: 0;
+height: 1px;
+pointer-events: none;
+}
+
+/* Candles container */
+.candles {
+display: flex;
+align-items: flex-end;
+gap: 4px;
+height: 100%;
+padding-bottom: 4px;
+}
+
+.c {
+display: flex;
+flex-direction: column;
+align-items: center;
+flex: 1;
+position: relative;
+}
+
+.c-wick-t { width: 1.5px; border-radius: 1px; }
+.c-body { width: 100%; max-width: 14px; border-radius: 2px; min-height: 4px; }
+.c-wick-b { width: 1.5px; border-radius: 1px; }
+
+.c.bull .c-wick-t,
+.c.bull .c-wick-b { background: var(–g); }
+.c.bull .c-body { background: var(–g); }
+
+.c.bear .c-wick-t,
+.c.bear .c-wick-b { background: var(–r); }
+.c.bear .c-body { background: var(–r); }
+
+/* Signal markers on chart */
+.sig-buy {
+position: absolute;
+bottom: -2px;
+left: 50%; transform: translateX(-50%);
+display: flex; flex-direction: column; align-items: center; gap: 2px;
+}
+
+.tri-up {
+width: 0; height: 0;
+border-left: 6px solid transparent;
+border-right: 6px solid transparent;
+border-bottom: 10px solid var(–g);
+filter: drop-shadow(0 0 6px var(–g));
+}
+
+.sig-txt {
+font-family: ‘JetBrains Mono’, monospace;
+font-size: 7px;
+color: var(–g);
+white-space: nowrap;
+}
+
+/* TP/SL horizontal lines */
+.hline {
+position: absolute;
+left: 20px; right: 20px;
+height: 1px;
+display: flex; align-items: center; justify-content: flex-end;
+}
+
+.hline-label {
+font-family: ‘JetBrains Mono’, monospace;
+font-size: 8px;
+padding: 1px 6px;
+border-radius: 3px;
+white-space: nowrap;
+}
+
+/* Dashboard in corner */
+.dash-box {
+position: absolute;
+top: 20px; right: 20px;
+background: rgba(8,12,16,0.95);
+border: 1px solid rgba(0,212,255,0.25);
+border-radius: 10px;
+padding: 14px 16px;
+min-width: 170px;
+backdrop-filter: blur(10px);
+}
+
+.dash-hdr {
+font-family: ‘JetBrains Mono’, monospace;
+font-size: 9px;
+color: var(–c);
+letter-spacing: 2px;
+margin-bottom: 10px;
+padding-bottom: 8px;
+border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+
+.dr {
+display: flex;
+justify-content: space-between;
+padding: 3px 0;
+font-family: ‘JetBrains Mono’, monospace;
+font-size: 10px;
+}
+
+.dk { color: var(–muted); }
+.dg { color: var(–g); }
+.dr2 { color: var(–r); }
+.dw { color: var(–white); }
+.dy { color: var(–y); }
+
+@keyframes fadeUp {
+from { opacity:0; transform:translateY(24px); }
+to { opacity:1; transform:translateY(0); }
+}
+
+/* ══════════════════════════
+TICKER STRIP
+══════════════════════════ */
+.ticker-strip {
+background: var(–bg1);
+border-top: 1px solid var(–border);
+border-bottom: 1px solid var(–border);
+padding: 12px 0;
+overflow: hidden;
+}
+
+.ticker-track {
+display: flex;
+gap: 0;
+animation: scrollLeft 25s linear infinite;
+white-space: nowrap;
+}
+
+@keyframes scrollLeft {
+from { transform: translateX(0); }
+to { transform: translateX(-50%); }
+}
+
+.tick {
+padding: 0 32px;
+font-family: ‘JetBrains Mono’, monospace;
+font-size: 11px;
+color: var(–muted);
+border-right: 1px solid var(–border2);
+display: inline-flex;
+align-items: center;
+gap: 8px;
+}
+
+.tick .tval { color: var(–g); }
+.tick .tsep { color: var(–border2); }
+
+/* ══════════════════════════
+SECTION HEADERS
+══════════════════════════ */
+.sec-head {
+text-align: center;
+margin-bottom: 64px;
+}
+
+.sec-tag {
+font-family: ‘JetBrains Mono’, monospace;
+font-size: 10px;
+color: var(–g);
+letter-spacing: 3px;
+text-transform: uppercase;
+margin-bottom: 16px;
+display: inline-flex;
+align-items: center;
+gap: 10px;
+}
+
+.sec-tag::before, .sec-tag::after {
+content:’’;
+width: 30px;
+height: 1px;
+background: var(–g);
+opacity: 0.4;
+}
+
+h2 {
+font-family: ‘Bebas Neue’, sans-serif;
+font-size: clamp(40px, 6vw, 72px);
+line-height: 1;
+letter-spacing: 1px;
+color: var(–white);
+margin-bottom: 16px;
+}
+
+h2 em { color: var(–g); font-style: normal; }
+
+.sec-sub {
+font-size: 16px;
+color: var(–muted);
+max-width: 520px;
+margin: 0 auto;
+line-height: 1.7;
+}
+
+/* ══════════════════════════
+STATS SECTION
+══════════════════════════ */
+.stats-sec {
+padding: 100px 60px;
+background: var(–bg1);
+}
+
+.big-stats {
+display: grid;
+grid-template-columns: repeat(4, 1fr);
+gap: 2px;
+background: var(–border);
+border: 1px solid var(–border);
+border-radius: 16px;
+overflow: hidden;
+max-width: 900px;
+margin: 0 auto 60px;
+}
+
+.bs {
+background: var(–card);
+padding: 36px 28px;
+text-align: center;
+position: relative;
+overflow: hidden;
+transition: background 0.3s;
+}
+
+.bs:hover { background: var(–card2); }
+
+.bs::before {
+content:’’;
+position:absolute;
+top:0; left:0; right:0;
+height:3px;
+}
+
+.bs.g::before { background: var(–g); }
+.bs.r::before { background: var(–r); }
+.bs.y::before { background: var(–y); }
+.bs.c::before { background: var(–c); }
+
+.bs-n {
+font-family: ‘Bebas Neue’, sans-serif;
+font-size: 52px;
+line-height: 1;
+margin-bottom: 6px;
+}
+
+.bs-n.g { color: var(–g); }
+.bs-n.r { color: var(–r); }
+.bs-n.y { color: var(–y); }
+.bs-n.c { color: var(–c); }
+.bs-n.w { color: var(–white); }
+
+.bs-l {
+font-family: ‘JetBrains Mono’, monospace;
+font-size: 9px;
+color: var(–muted);
+letter-spacing: 2px;
+text-transform: uppercase;
+margin-bottom: 4px;
+}
+
+.bs-s { font-size: 11px; color: var(–muted); }
+
+/* Progress bars */
+.perf-bars {
+max-width: 900px;
+margin: 0 auto;
+display: flex;
+flex-direction: column;
+gap: 20px;
+}
+
+.pb-row {
+display: grid;
+grid-template-columns: 140px 1fr 80px;
+align-items: center;
+gap: 16px;
+}
+
+.pb-label {
+font-family: ‘JetBrains Mono’, monospace;
+font-size: 10px;
+color: var(–muted);
+letter-spacing: 1px;
+text-transform: uppercase;
+text-align: right;
+}
+
+.pb-track {
+height: 6px;
+background: rgba(255,255,255,0.04);
+border-radius: 3px;
+overflow: visible;
+position: relative;
+}
+
+.pb-fill {
+height: 100%;
+border-radius: 3px;
+position: relative;
+transition: width 1s ease;
+}
+
+.pb-fill::after {
+content:’’;
+position:absolute;
+right:-4px; top:50%;
+transform:translateY(-50%);
+width:12px; height:12px;
+border-radius:50%;
+background:inherit;
+box-shadow:0 0 10px currentColor;
+}
+
+.pb-val {
+font-family: ‘Bebas Neue’, sans-serif;
+font-size: 20px;
+}
+
+/* ══════════════════════════
+FEATURES SECTION
+══════════════════════════ */
+.features-sec {
+padding: 100px 60px;
+}
+
+.feat-grid {
+display: grid;
+grid-template-columns: repeat(3, 1fr);
+gap: 16px;
+max-width: 1000px;
+margin: 0 auto;
+}
+
+.feat {
+background: var(–card);
+border: 1px solid var(–border2);
+border-radius: 14px;
+padding: 32px;
+position: relative;
+overflow: hidden;
+transition: border-color 0.3s, transform 0.3s;
+cursor: none;
+}
+
+.feat:hover {
+border-color: var(–border);
+transform: translateY(-4px);
+}
+
+.feat::before {
+content:’’;
+position:absolute;
+inset:0;
+background: radial-gradient(circle at 0% 0%, rgba(0,255,135,0.04) 0%, transparent 60%);
+opacity:0;
+transition:opacity 0.3s;
+}
+
+.feat:hover::before { opacity:1; }
+
+.feat-ico {
+font-size: 28px;
+margin-bottom: 20px;
+display: block;
+line-height: 1;
+}
+
+.feat-t {
+font-family: ‘Instrument Sans’, sans-serif;
+font-size: 17px;
+font-weight: 700;
+color: var(–white);
+margin-bottom: 10px;
+}
+
+.feat-d {
+font-size: 13px;
+color: var(–muted);
+line-height: 1.7;
+}
+
+.feat-badge {
+margin-top: 16px;
+display: inline-block;
+padding: 3px 10px;
+background: rgba(0,255,135,0.08);
+border: 1px solid rgba(0,255,135,0.2);
+border-radius: 4px;
+font-family: ‘JetBrains Mono’, monospace;
+font-size: 8px;
+color: var(–g);
+letter-spacing: 1.5px;
+text-transform: uppercase;
+}
+
+/* ══════════════════════════
+GROWTH SECTION
+══════════════════════════ */
+.growth-sec {
+padding: 100px 60px;
+background: var(–bg1);
+}
+
+.growth-inner {
+max-width: 960px;
+margin: 0 auto;
+display: grid;
+grid-template-columns: 1fr 1fr;
+gap: 48px;
+align-items: start;
+}
+
+.growth-table {
+width: 100%;
+border-collapse: collapse;
+}
+
+.growth-table th {
+font-family: ‘JetBrains Mono’, monospace;
+font-size: 9px;
+letter-spacing: 2px;
+text-transform: uppercase;
+color: var(–g);
+padding: 10px 14px;
+text-align: left;
+border-bottom: 1px solid var(–border);
+background: rgba(0,255,135,0.04);
+}
+
+.growth-table td {
+font-family: ‘JetBrains Mono’, monospace;
+font-size: 12px;
+padding: 12px 14px;
+border-bottom: 1px solid rgba(255,255,255,0.03);
+color: var(–text);
+transition: background 0.2s;
+}
+
+.growth-table tr:hover td { background: rgba(0,255,135,0.02); }
+.growth-table .gr td { color: var(–g); font-weight: 700; }
+
+.tg { color: var(–g) !important; }
+.ty { color: var(–y) !important; }
+.tc { color: var(–c) !important; }
+.tw { color: var(–white) !important; }
+
+/* Timeline */
+.tl {
+border-left: 1px solid var(–border);
+padding-left: 28px;
+margin-left: 10px;
+}
+
+.tl-item {
+position: relative;
+padding: 0 0 32px;
+}
+
+.tl-item::before {
+content:’’;
+position:absolute;
+left:-35px; top:6px;
+width:12px; height:12px;
+border-radius:50%;
+background: var(–bg1);
+border: 2px solid var(–g);
+}
+
+.tl-item:last-child { padding-bottom: 0; }
+
+.tl-m {
+font-family: ‘JetBrains Mono’, monospace;
+font-size: 9px;
+color: var(–g);
+letter-spacing: 2px;
+margin-bottom: 4px;
+}
+
+.tl-b {
+font-family: ‘Bebas Neue’, sans-serif;
+font-size: 32px;
+color: var(–white);
+line-height: 1;
+margin-bottom: 2px;
+}
+
+.tl-g {
+font-family: ‘JetBrains Mono’, monospace;
+font-size: 11px;
+color: var(–muted);
+}
+
+/* ══════════════════════════
+PRICING SECTION
+══════════════════════════ */
+.pricing-sec {
+padding: 100px 60px;
+}
+
+.pricing-inner {
+max-width: 880px;
+margin: 0 auto;
+}
+
+.plans {
+display: grid;
+grid-template-columns: repeat(3, 1fr);
+gap: 16px;
+}
+
+.plan {
+background: var(–card);
+border: 1px solid var(–border2);
+border-radius: 16px;
+padding: 36px 28px;
+position: relative;
+overflow: hidden;
+transition: transform 0.3s;
+display: flex;
+flex-direction: column;
+}
+
+.plan:hover { transform: translateY(-6px); }
+
+.plan.pop {
+border-color: var(–g);
+background: linear-gradient(160deg, rgba(0,255,135,0.06) 0%, var(–card) 60%);
+}
+
+.pop-badge {
+position: absolute;
+top: 0; left: 50%;
+transform: translateX(-50%);
+background: var(–g);
+color: #000;
+font-family: ‘JetBrains Mono’, monospace;
+font-size: 8px;
+font-weight: 700;
+letter-spacing: 2px;
+padding: 4px 20px;
+border-radius: 0 0 8px 8px;
+text-transform: uppercase;
+}
+
+.plan-name {
+font-family: ‘JetBrains Mono’, monospace;
+font-size: 10px;
+color: var(–muted);
+letter-spacing: 3px;
+text-transform: uppercase;
+margin-bottom: 20px;
+margin-top: 16px;
+}
+
+.plan-price {
+font-family: ‘Bebas Neue’, sans-serif;
+font-size: 60px;
+line-height: 1;
+color: var(–white);
+margin-bottom: 4px;
+}
+
+.plan-price sup {
+font-size: 0.35em;
+color: var(–muted);
+vertical-align: super;
+}
+
+.plan-per {
+font-family: ‘JetBrains Mono’, monospace;
+font-size: 10px;
+color: var(–muted);
+margin-bottom: 28px;
+}
+
+.plan-feats {
+list-style: none;
+display: flex;
+flex-direction: column;
+gap: 10px;
+margin-bottom: 28px;
+flex: 1;
+}
+
+.plan-feats li {
+font-size: 13px;
+color: var(–text);
+display: flex;
+align-items: flex-start;
+gap: 8px;
+line-height: 1.4;
+}
+
+.plan-feats li::before {
+content:‘✓’;
+color: var(–g);
+font-size: 11px;
+font-weight: 900;
+flex-shrink: 0;
+margin-top: 1px;
+}
+
+.plan-btn {
+display: block;
+width: 100%;
+padding: 14px;
+border-radius: 8px;
+font-family: ‘Instrument Sans’, sans-serif;
+font-weight: 700;
+font-size: 14px;
+text-align: center;
+text-decoration: none;
+letter-spacing: 0.3px;
+cursor: none;
+border: none;
+transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.plan-btn:hover { transform: translateY(-2px); }
+
+.plan-btn.p {
+background: var(–g);
+color: #000;
+box-shadow: 0 8px 24px rgba(0,255,135,0.25);
+}
+
+.plan-btn.s {
+background: transparent;
+border: 1px solid var(–border2);
+color: var(–text);
+}
+
+.plan-btn.s:hover { border-color: var(–border); color: var(–g); }
+
+/* ══════════════════════════
+SETUP SECTION
+══════════════════════════ */
+.setup-sec {
+padding: 100px 60px;
+background: var(–bg1);
+}
+
+.setup-inner {
+max-width: 700px;
+margin: 0 auto;
+}
+
+.step-list {
+display: flex;
+flex-direction: column;
+gap: 0;
+}
+
+.step {
+display: grid;
+grid-template-columns: 56px 1fr;
+gap: 20px;
+padding: 28px 0;
+border-bottom: 1px solid var(–border2);
+align-items: start;
+}
+
+.step:last-child { border-bottom: none; }
+
+.step-n {
+width: 42px; height: 42px;
+border-radius: 50%;
+background: rgba(0,255,135,0.08);
+border: 1px solid rgba(0,255,135,0.25);
+display: flex; align-items: center; justify-content: center;
+font-family: ‘Bebas Neue’, sans-serif;
+font-size: 20px;
+color: var(–g);
+flex-shrink: 0;
+}
+
+.step-t {
+font-family: ‘Instrument Sans’, sans-serif;
+font-size: 17px;
+font-weight: 700;
+color: var(–white);
+margin-bottom: 6px;
+}
+
+.step-d {
+font-size: 13px;
+color: var(–muted);
+line-height: 1.7;
+}
+
+.code-snippet {
+margin-top: 10px;
+background: var(–bg);
+border: 1px solid var(–border);
+border-radius: 6px;
+padding: 10px 14px;
+font-family: ‘JetBrains Mono’, monospace;
+font-size: 10px;
+color: var(–g);
+letter-spacing: 0.5px;
+}
+
+/* ══════════════════════════
+FAQ SECTION
+══════════════════════════ */
+.faq-sec {
+padding: 100px 60px;
+}
+
+.faq-inner {
+max-width: 700px;
+margin: 0 auto;
+display: flex;
+flex-direction: column;
+gap: 12px;
+}
+
+.faq-item {
+background: var(–card);
+border: 1px solid var(–border2);
+border-radius: 12px;
+overflow: hidden;
+}
+
+.faq-q {
+padding: 20px 24px;
+font-size: 15px;
+font-weight: 600;
+color: var(–white);
+cursor: none;
+display: flex;
+justify-content: space-between;
+align-items: center;
+user-select: none;
+}
+
+.faq-q::after {
+content: ‘+’;
+font-family: ‘JetBrains Mono’, monospace;
+font-size: 20px;
+color: var(–g);
+transition: transform 0.3s;
+}
+
+.faq-item.open .faq-q::after { transform: rotate(45deg); }
+
+.faq-a {
+padding: 0 24px;
+font-size: 13px;
+color: var(–muted);
+line-height: 1.8;
+max-height: 0;
+overflow: hidden;
+transition: max-height 0.3s ease, padding 0.3s;
+}
+
+.faq-item.open .faq-a {
+max-height: 200px;
+padding: 0 24px 20px;
+}
+
+/* ══════════════════════════
+DISCLAIMER
+══════════════════════════ */
+.disclaimer-sec {
+padding: 40px 60px;
+background: var(–bg1);
+border-top: 1px solid var(–border2);
+}
+
+.disclaimer-inner {
+max-width: 800px;
+margin: 0 auto;
+text-align: center;
+}
+
+.disclaimer-title {
+font-family: ‘JetBrains Mono’, monospace;
+font-size: 10px;
+color: var(–r);
+letter-spacing: 2px;
+margin-bottom: 10px;
+}
+
+.disclaimer-text {
+font-size: 11px;
+color: var(–muted);
+line-height: 1.8;
+}
+
+/* ══════════════════════════
+FOOTER
+══════════════════════════ */
+footer {
+background: var(–bg);
+border-top: 1px solid var(–border);
+padding: 48px 60px;
+display: flex;
+align-items: center;
+justify-content: space-between;
+flex-wrap: wrap;
+gap: 20px;
+}
+
+.footer-logo {
+font-family: ‘Bebas Neue’, sans-serif;
+font-size: 24px;
+letter-spacing: 2px;
+color: var(–g);
+}
+
+.footer-logo span { color: var(–white); }
+
+.footer-links {
+display: flex;
+gap: 24px;
+list-style: none;
+}
+
+.footer-links a {
+font-family: ‘JetBrains Mono’, monospace;
+font-size: 10px;
+color: var(–muted);
+text-decoration: none;
+letter-spacing: 1px;
+text-transform: uppercase;
+transition: color 0.2s;
+}
+
+.footer-links a:hover { color: var(–g); }
+
+.footer-copy {
+font-family: ‘JetBrains Mono’, monospace;
+font-size: 10px;
+color: var(–muted);
+letter-spacing: 0.5px;
+}
+
+/* ══════════════════════════
+MOBILE
+══════════════════════════ */
+@media (max-width: 768px) {
+nav { padding: 16px 24px; }
+.nav-links { display: none; }
+.hero { padding: 100px 24px 60px; }
+.stat-div { display: none; }
+.stats-sec, .features-sec, .growth-sec, .pricing-sec, .setup-sec, .faq-sec { padding: 60px 24px; }
+.big-stats { grid-template-columns: repeat(2, 1fr); }
+.feat-grid { grid-template-columns: 1fr; }
+.growth-inner { grid-template-columns: 1fr; }
+.plans { grid-template-columns: 1fr; }
+footer { padding: 32px 24px; flex-direction: column; align-items: flex-start; }
+body { cursor: auto; }
+.cursor, .cursor-ring { display: none; }
+}
+</style>
+
+</head>
+<body>
+
+<!-- Custom Cursor -->
+
+<div class="cursor" id="cursor"></div>
+<div class="cursor-ring" id="cursorRing"></div>
+
+<!-- Grid BG -->
+
+<div class="grid-bg"></div>
+
+<!-- ═══════ NAV ═══════ -->
+
+<nav>
+  <a href="#" class="nav-logo">BULLS<span> v1</span></a>
+  <ul class="nav-links">
+    <li><a href="#results">Results</a></li>
+    <li><a href="#features">Features</a></li>
+    <li><a href="#growth">Growth</a></li>
+    <li><a href="#pricing">Pricing</a></li>
+    <li><a href="#setup">Setup</a></li>
+    <li><a href="#pricing" class="nav-cta">Get Access →</a></li>
+  </ul>
+</nav>
+
+<!-- ═══════ HERO ═══════ -->
+
+<section class="hero" id="home">
+  <div class="live-pill">
+    <span class="live-dot"></span>
+    15m · BTC · All History — 7.5 Months Proven
+  </div>
+
+  <div class="hero-eyebrow">TradingView Indicator — Smart Money Concept</div>
+
+  <h1><span class="accent">BULLS</span> <span class="v">v1</span></h1>
+
+  <p class="hero-tagline">
+    Professional SMC indicator for TradingView. EMA ribbons, MACD confirmation, Order Blocks, Liquidity zones — all in one clean dashboard.
+  </p>
+
+  <div class="stat-strip">
+    <div class="sstat">
+      <span class="sstat-n">93</span>
+      <span class="sstat-l">Trades</span>
+    </div>
+    <div class="stat-div"></div>
+    <div class="sstat">
+      <span class="sstat-n cy">54.8%</span>
+      <span class="sstat-l">Accuracy</span>
+    </div>
+    <div class="stat-div"></div>
+    <div class="sstat">
+      <span class="sstat-n cc">+44.4R</span>
+      <span class="sstat-l">Net R</span>
+    </div>
+    <div class="stat-div"></div>
+    <div class="sstat">
+      <span class="sstat-n">$888</span>
+      <span class="sstat-l">Profit ($1k)</span>
+    </div>
+    <div class="stat-div"></div>
+    <div class="sstat">
+      <span class="sstat-n cy">0.48R</span>
+      <span class="sstat-l">EV / Trade</span>
+    </div>
+  </div>
+
+  <div class="cta-group">
+    <a href="#pricing" class="btn-primary">Get BULLS v1 → $19/mo</a>
+    <a href="#results" class="btn-secondary">View Results ↓</a>
+  </div>
+
+  <!-- Chart mockup -->
+
+  <div class="chart-wrap">
+    <div class="chart-frame">
+      <div class="chart-topbar">
+        <div class="chart-sym">
+          <div class="btc-icon">₿</div>
+          <div>
+            <div class="chart-sym-name">BTCUSD</div>
+            <div class="chart-sym-tf">15 · BULLS v1</div>
+          </div>
+        </div>
+        <div>
+          <div class="chart-price-display">70,747.2 <span class="chart-change">▲+0.8%</span></div>
+        </div>
+      </div>
+
+```
+  <div class="chart-body">
+    <!-- EMA lines -->
+    <div class="ema-line" style="top:35%;background:rgba(255,224,0,0.4);"></div>
+    <div class="ema-line" style="top:45%;background:rgba(0,212,255,0.35);"></div>
+    <div class="ema-line" style="top:60%;background:rgba(255,131,0,0.3);"></div>
+    <div class="ema-line" style="top:72%;background:rgba(255,131,0,0.6);"></div>
+
+    <!-- TP/SL lines -->
+    <div class="hline" style="top:8%;border-top:1px dashed rgba(0,255,135,0.6);">
+      <span class="hline-label" style="background:rgba(0,255,135,0.15);color:var(--g);">TP3 +3.5R</span>
+    </div>
+    <div class="hline" style="top:20%;border-top:1px dashed rgba(0,255,135,0.4);">
+      <span class="hline-label" style="background:rgba(0,255,135,0.1);color:var(--g);">TP2</span>
+    </div>
+    <div class="hline" style="top:32%;border-top:1px dashed rgba(0,255,135,0.3);">
+      <span class="hline-label" style="background:rgba(0,255,135,0.08);color:var(--g);">TP1</span>
+    </div>
+    <div class="hline" style="bottom:22%;border-top:1px dashed rgba(255,51,85,0.5);">
+      <span class="hline-label" style="background:rgba(255,51,85,0.1);color:var(--r);">SL</span>
+    </div>
+
+    <!-- Candles -->
+    <div class="candles">
+      <div class="c bear"><div class="c-wick-t" style="height:18px"></div><div class="c-body" style="height:22px"></div><div class="c-wick-b" style="height:8px"></div></div>
+      <div class="c bull"><div class="c-wick-t" style="height:10px"></div><div class="c-body" style="height:30px"></div><div class="c-wick-b" style="height:6px"></div></div>
+      <div class="c bear"><div class="c-wick-t" style="height:14px"></div><div class="c-body" style="height:16px"></div><div class="c-wick-b" style="height:5px"></div></div>
+      <div class="c bear"><div class="c-wick-t" style="height:20px"></div><div class="c-body" style="height:12px"></div><div class="c-wick-b" style="height:8px"></div></div>
+      <div class="c bull" style="position:relative"><div class="c-wick-t" style="height:6px"></div><div class="c-body" style="height:38px"></div><div class="c-wick-b" style="height:5px"></div>
+        <div class="sig-buy"><div class="tri-up"></div><div class="sig-txt">🟢 BUY</div></div>
+      </div>
+      <div class="c bull"><div class="c-wick-t" style="height:8px"></div><div class="c-body" style="height:48px"></div><div class="c-wick-b" style="height:10px"></div></div>
+      <div class="c bull"><div class="c-wick-t" style="height:12px"></div><div class="c-body" style="height:55px"></div><div class="c-wick-b" style="height:8px"></div></div>
+      <div class="c bear"><div class="c-wick-t" style="height:16px"></div><div class="c-body" style="height:18px"></div><div class="c-wick-b" style="height:6px"></div></div>
+      <div class="c bull"><div class="c-wick-t" style="height:6px"></div><div class="c-body" style="height:42px"></div><div class="c-wick-b" style="height:4px"></div></div>
+      <div class="c bull"><div class="c-wick-t" style="height:10px"></div><div class="c-body" style="height:62px"></div><div class="c-wick-b" style="height:12px"></div></div>
+      <div class="c bear"><div class="c-wick-t" style="height:24px"></div><div class="c-body" style="height:20px"></div><div class="c-wick-b" style="height:8px"></div></div>
+      <div class="c bull"><div class="c-wick-t" style="height:8px"></div><div class="c-body" style="height:35px"></div><div class="c-wick-b" style="height:5px"></div></div>
+    </div>
+
+    <!-- TP3 hit label -->
+    <div style="position:absolute;top:4px;left:50%;transform:translateX(-50%);font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--g);background:rgba(0,255,135,0.1);border:1px solid rgba(0,255,135,0.3);padding:3px 10px;border-radius:4px;">✅ TP3 HIT +3.5R</div>
+
+    <!-- Dashboard -->
+    <div class="dash-box">
+      <div class="dash-hdr">🐂 BULLS v1 · All History</div>
+      <div class="dr"><span class="dk">Trades</span><span class="dw">93</span></div>
+      <div class="dr"><span class="dk">Win %</span><span class="dg">25.8%</span></div>
+      <div class="dr"><span class="dk">Accuracy</span><span class="dy">54.8%</span></div>
+      <div class="dr"><span class="dk">SL %</span><span class="dr2">45.2%</span></div>
+      <div class="dr"><span class="dk">EV</span><span class="dg">0.48R</span></div>
+      <div class="dr"><span class="dk">Net R</span><span class="dg">44.4R</span></div>
+      <div class="dr"><span class="dk">Status</span><span class="dg">● LONG</span></div>
+    </div>
+  </div>
+</div>
+```
+
+  </div>
+</section>
+
+<!-- ═══════ TICKER ═══════ -->
+
+<div class="ticker-strip">
+  <div class="ticker-track">
+    <span class="tick">BTCUSD <span class="tval">▲+0.8%</span></span>
+    <span class="tick">BULLS v1 <span class="tval">93 TRADES</span></span>
+    <span class="tick">NET PROFIT <span class="tval">+$888</span></span>
+    <span class="tick">ACCURACY <span class="tval">54.8%</span></span>
+    <span class="tick">EV <span class="tval">+0.48R</span></span>
+    <span class="tick">7.5 MONTHS <span class="tval">PROVEN</span></span>
+    <span class="tick">CAPITAL GROWTH <span class="tval">+88.8%</span></span>
+    <span class="tick">ETHUSD <span class="tval">▲+1.2%</span></span>
+    <span class="tick">SOLUSDT <span class="tval">▲+2.1%</span></span>
+    <span class="tick">ORDER BLOCKS <span class="tval">✓</span></span>
+    <span class="tick">BTCUSD <span class="tval">▲+0.8%</span></span>
+    <span class="tick">BULLS v1 <span class="tval">93 TRADES</span></span>
+    <span class="tick">NET PROFIT <span class="tval">+$888</span></span>
+    <span class="tick">ACCURACY <span class="tval">54.8%</span></span>
+    <span class="tick">EV <span class="tval">+0.48R</span></span>
+    <span class="tick">7.5 MONTHS <span class="tval">PROVEN</span></span>
+    <span class="tick">CAPITAL GROWTH <span class="tval">+88.8%</span></span>
+    <span class="tick">ETHUSD <span class="tval">▲+1.2%</span></span>
+    <span class="tick">SOLUSDT <span class="tval">▲+2.1%</span></span>
+    <span class="tick">ORDER BLOCKS <span class="tval">✓</span></span>
+  </div>
+</div>
+
+<!-- ═══════ RESULTS ═══════ -->
+
+<section class="stats-sec" id="results">
+  <div class="sec-head">
+    <div class="sec-tag">Backtest Results</div>
+    <h2>7.5 Months.<br><em>Real Data.</em></h2>
+    <p class="sec-sub">Every stat shown is from live backtesting on BTCUSD 15m. No cherry-picking. No simulation.</p>
+  </div>
+
+  <div class="big-stats">
+    <div class="bs g">
+      <div class="bs-l">Total Trades</div>
+      <div class="bs-n w">93</div>
+      <div class="bs-s">7.5 month period</div>
+    </div>
+    <div class="bs g">
+      <div class="bs-l">Full TP Hits</div>
+      <div class="bs-n g">24</div>
+      <div class="bs-s">TP3 reached</div>
+    </div>
+    <div class="bs r">
+      <div class="bs-l">SL Trades</div>
+      <div class="bs-n r">42</div>
+      <div class="bs-s">-1R each</div>
+    </div>
+    <div class="bs c">
+      <div class="bs-l">Breakeven</div>
+      <div class="bs-n c">27</div>
+      <div class="bs-s">+$1 partial close</div>
+    </div>
+    <div class="bs y">
+      <div class="bs-l">Accuracy</div>
+      <div class="bs-n y">54.8%</div>
+      <div class="bs-s">TP + BE combined</div>
+    </div>
+    <div class="bs g">
+      <div class="bs-l">EV Per Trade</div>
+      <div class="bs-n g">0.48R</div>
+      <div class="bs-s">Expected value</div>
+    </div>
+    <div class="bs g">
+      <div class="bs-l">Total Net R</div>
+      <div class="bs-n g">44.4R</div>
+      <div class="bs-s">Raw R-multiple</div>
+    </div>
+    <div class="bs y">
+      <div class="bs-l">Net Profit</div>
+      <div class="bs-n y">$888</div>
+      <div class="bs-s">$1k · 2% risk</div>
+    </div>
+  </div>
+
+  <div class="perf-bars">
+    <div class="pb-row">
+      <div class="pb-label">Win Rate</div>
+      <div class="pb-track"><div class="pb-fill" style="width:25.8%;background:var(--g)"></div></div>
+      <div class="pb-val" style="color:var(--g)">25.8%</div>
+    </div>
+    <div class="pb-row">
+      <div class="pb-label">Accuracy</div>
+      <div class="pb-track"><div class="pb-fill" style="width:54.8%;background:var(--y)"></div></div>
+      <div class="pb-val" style="color:var(--y)">54.8%</div>
+    </div>
+    <div class="pb-row">
+      <div class="pb-label">SL Rate</div>
+      <div class="pb-track"><div class="pb-fill" style="width:45.2%;background:var(--r)"></div></div>
+      <div class="pb-val" style="color:var(--r)">45.2%</div>
+    </div>
+    <div class="pb-row">
+      <div class="pb-label">Capital Growth</div>
+      <div class="pb-track"><div class="pb-fill" style="width:88.8%;background:var(--c)"></div></div>
+      <div class="pb-val" style="color:var(--c)">+88.8%</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════ FEATURES ═══════ -->
+
+<section class="features-sec" id="features">
+  <div class="sec-head">
+    <div class="sec-tag">What's Inside</div>
+    <h2>Every Tool.<br><em>One Indicator.</em></h2>
+    <p class="sec-sub">9 professional features built into a single clean TradingView indicator.</p>
+  </div>
+
+  <div class="feat-grid">
+    <div class="feat">
+      <span class="feat-ico">📈</span>
+      <div class="feat-t">EMA Ribbon System</div>
+      <div class="feat-d">EMA 9/21/50/200 with dynamic color fill. Green = uptrend. Red = downtrend. Instant visual clarity on trend direction.</div>
+      <span class="feat-badge">Trend Filter</span>
+    </div>
+    <div class="feat">
+      <span class="feat-ico">📊</span>
+      <div class="feat-t">MACD Confirmation</div>
+      <div class="feat-d">Optimized 8/17/5 MACD for 15m crypto. Only enters when MACD momentum aligns. Dramatically reduces false signals.</div>
+      <span class="feat-badge">Momentum</span>
+    </div>
+    <div class="feat">
+      <span class="feat-ico">🏗️</span>
+      <div class="feat-t">BOS + CHoCH</div>
+      <div class="feat-d">Break of Structure and Change of Character detected automatically. Know structure shifts before price confirms them.</div>
+      <span class="feat-badge">SMC Structure</span>
+    </div>
+    <div class="feat">
+      <span class="feat-ico">📦</span>
+      <div class="feat-t">Order Blocks</div>
+      <div class="feat-d">Volume-confirmed bullish and bearish OBs drawn automatically on BOS. Shows exact institutional entry zones.</div>
+      <span class="feat-badge">Order Flow</span>
+    </div>
+    <div class="feat">
+      <span class="feat-ico">🎯</span>
+      <div class="feat-t">Liquidity Zones</div>
+      <div class="feat-d">Equal Highs (EQH) and Equal Lows (EQL) marked as dashed target lines. See stop hunt zones before they trigger.</div>
+      <span class="feat-badge">Liquidity</span>
+    </div>
+    <div class="feat">
+      <span class="feat-ico">💰</span>
+      <div class="feat-t">Auto SL / TP Levels</div>
+      <div class="feat-d">ATR-based stop loss. TP1 at 1R, TP2 at 2R, TP3 at 3.5R. Automatic breakeven move after TP1. Built-in risk management.</div>
+      <span class="feat-badge">Risk Mgmt</span>
+    </div>
+    <div class="feat">
+      <span class="feat-ico">📋</span>
+      <div class="feat-t">Live Stats Dashboard</div>
+      <div class="feat-d">Real-time win rate, accuracy, SL%, EV per trade, Net R, net profit — all visible on chart. Track performance live.</div>
+      <span class="feat-badge">Analytics</span>
+    </div>
+    <div class="feat">
+      <span class="feat-ico">🎨</span>
+      <div class="feat-t">Trade History Boxes</div>
+      <div class="feat-d">Every past trade shown as a colored box on the chart. Green = winner, Red = loss, Grey = breakeven. Full visual history.</div>
+      <span class="feat-badge">History</span>
+    </div>
+    <div class="feat">
+      <span class="feat-ico">🔒</span>
+      <div class="feat-t">One Trade Rule</div>
+      <div class="feat-d">Only one active trade at a time. No overtrading. No signal spam. Maximum discipline built directly into the code.</div>
+      <span class="feat-badge">Discipline</span>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════ GROWTH ═══════ -->
+
+<section class="growth-sec" id="growth">
+  <div class="sec-head">
+    <div class="sec-tag">Capital Growth</div>
+    <h2>$100 Start.<br><em>Compounded.</em></h2>
+    <p class="sec-sub">What happens when you compound profits at 2-5% risk per trade using BULLS v1.</p>
+  </div>
+
+  <div class="growth-inner">
+    <div>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--g);letter-spacing:2px;margin-bottom:20px;">$100 START · 5% RISK · COMPOUNDED</div>
+      <div class="tl">
+        <div class="tl-item">
+          <div class="tl-m">START</div>
+          <div class="tl-b">$100</div>
+          <div class="tl-g">Beginning capital</div>
+        </div>
+        <div class="tl-item">
+          <div class="tl-m">MONTH 3</div>
+          <div class="tl-b">$190</div>
+          <div class="tl-g">+90% growth</div>
+        </div>
+        <div class="tl-item">
+          <div class="tl-m">MONTH 6</div>
+          <div class="tl-b">$362</div>
+          <div class="tl-g">+262% growth</div>
+        </div>
+        <div class="tl-item">
+          <div class="tl-m">MONTH 9</div>
+          <div class="tl-b">$691</div>
+          <div class="tl-g">+591% growth</div>
+        </div>
+        <div class="tl-item">
+          <div class="tl-m">MONTH 12</div>
+          <div class="tl-b" style="color:var(--g)">$1,319</div>
+          <div class="tl-g" style="color:var(--g)">+1,219% growth 🚀</div>
+        </div>
+        <div class="tl-item">
+          <div class="tl-m">MONTH 24</div>
+          <div class="tl-b" style="color:var(--y)">$7,285</div>
+          <div class="tl-g" style="color:var(--y)">+7,185% growth 🔥</div>
+        </div>
+      </div>
+    </div>
+
+```
+<div>
+  <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--y);letter-spacing:2px;margin-bottom:20px;">12 MONTH RESULTS BY CAPITAL</div>
+  <table class="growth-table">
+    <thead>
+      <tr>
+        <th>Start</th>
+        <th>Risk/Trade</th>
+        <th>Monthly</th>
+        <th>12 Months</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>$100</td><td>$5</td><td class="tg">$24</td><td class="tg">$1,319</td></tr>
+      <tr><td>$500</td><td>$25</td><td class="tg">$120</td><td class="tg">$6,595</td></tr>
+      <tr class="gr"><td>$1,000</td><td>$50</td><td>$240</td><td>$13,190</td></tr>
+      <tr><td>$5,000</td><td>$250</td><td class="ty">$1,200</td><td class="ty">$65,950</td></tr>
+      <tr><td>$10,000</td><td>$500</td><td class="tc">$2,400</td><td class="tc">$131,900</td></tr>
+    </tbody>
+  </table>
+
+  <div style="margin-top:20px;background:rgba(0,255,135,0.04);border:1px solid var(--border);border-radius:10px;padding:20px;">
+    <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:2px;margin-bottom:12px;">PARTIAL CLOSE STRATEGY</div>
+    <div style="font-size:13px;color:var(--text);line-height:2;">
+      ✦ <strong style="color:var(--white)">20% close at TP1</strong> (1:1R) — lock profit<br>
+      ✦ <strong style="color:var(--white)">80% runs to TP3</strong> (3.5R) — maximize win<br>
+      ✦ <strong style="color:var(--g)">BE trades = small profit</strong> instead of zero<br>
+      ✦ <strong style="color:var(--y)">Every SL covered by 3.5 wins</strong>
+    </div>
+  </div>
+</div>
+```
+
+  </div>
+</section>
+
+<!-- ═══════ PRICING ═══════ -->
+
+<section class="pricing-sec" id="pricing">
+  <div class="sec-head">
+    <div class="sec-tag">Pricing</div>
+    <h2>Simple Plans.<br><em>Cancel Anytime.</em></h2>
+    <p class="sec-sub">Get access to BULLS v1 on TradingView. Works on all crypto pairs.</p>
+  </div>
+
+  <div class="pricing-inner">
+    <div class="plans">
+      <div class="plan">
+        <div class="plan-name">Monthly</div>
+        <div class="plan-price"><sup>$</sup>19</div>
+        <div class="plan-per">per month · cancel anytime</div>
+        <ul class="plan-feats">
+          <li>BULLS v1 TradingView access</li>
+          <li>All updates included</li>
+          <li>Settings PDF guide</li>
+          <li>Email support</li>
+          <li>Works all crypto pairs</li>
+        </ul>
+        <a href="https://gumroad.com" class="plan-btn s">Get Monthly →</a>
+      </div>
+
+```
+  <div class="plan pop">
+    <div class="pop-badge">Best Value</div>
+    <div class="plan-name">3 Months</div>
+    <div class="plan-price"><sup>$</sup>49</div>
+    <div class="plan-per">save $8 vs monthly</div>
+    <ul class="plan-feats">
+      <li>BULLS v1 TradingView access</li>
+      <li>All updates included</li>
+      <li>Settings PDF — all coins</li>
+      <li>Backtest results PDF</li>
+      <li>Priority support</li>
+      <li>15m + 1H optimized settings</li>
+    </ul>
+    <a href="https://gumroad.com" class="plan-btn p">Get 3 Months →</a>
+  </div>
+
+  <div class="plan">
+    <div class="plan-name">Lifetime</div>
+    <div class="plan-price"><sup>$</sup>99</div>
+    <div class="plan-per">one time · forever</div>
+    <ul class="plan-feats">
+      <li>BULLS v1 lifetime access</li>
+      <li>All future versions free</li>
+      <li>Complete setup guide</li>
+      <li>All coin settings</li>
+      <li>VIP Telegram community</li>
+      <li>1-on-1 onboarding call</li>
+    </ul>
+    <a href="https://gumroad.com" class="plan-btn s">Get Lifetime →</a>
+  </div>
+</div>
+```
+
+  </div>
+</section>
+
+<!-- ═══════ SETUP ═══════ -->
+
+<section class="setup-sec" id="setup">
+  <div class="sec-head">
+    <div class="sec-tag">How It Works</div>
+    <h2>Up And Running<br><em>In 5 Minutes.</em></h2>
+  </div>
+
+  <div class="setup-inner">
+    <div class="step-list">
+      <div class="step">
+        <div class="step-n">1</div>
+        <div>
+          <div class="step-t">Purchase on Gumroad</div>
+          <div class="step-d">Choose your plan and pay securely. You'll receive a confirmation email with next steps within seconds.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-n">2</div>
+        <div>
+          <div class="step-t">Send Your TradingView Username</div>
+          <div class="step-d">Reply to your confirmation email with your TradingView username. Access is granted within 24 hours.</div>
+          <div class="code-snippet">Email: support@bullsv1.com → "My TV username: yourname123"</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-n">3</div>
+        <div>
+          <div class="step-t">Add To Your Chart</div>
+          <div class="step-d">TradingView → Indicators → Invite Only Scripts → BULLS v1. Add to any crypto chart on 15m timeframe.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-n">4</div>
+        <div>
+          <div class="step-t">Apply Best Settings</div>
+          <div class="step-d">Use the included PDF for optimal settings per coin. Recommended starting setup for BTCUSD 15m.</div>
+          <div class="code-snippet">ATR SL: 4.5 · Buffer: 0.95 · TP3: 3.5R · MACD: 8/17/5 · RSI: 68/32</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-n">5</div>
+        <div>
+          <div class="step-t">Follow Signals & Trade</div>
+          <div class="step-d">🟢 triangle = BUY signal. 🔴 triangle = SELL signal. Use 2-5% risk per trade. Let the system compound.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════ FAQ ═══════ -->
+
+<section class="faq-sec" id="faq">
+  <div class="sec-head">
+    <div class="sec-tag">FAQ</div>
+    <h2>Common<br><em>Questions.</em></h2>
+  </div>
+
+  <div class="faq-inner">
+    <div class="faq-item">
+      <div class="faq-q">What exchanges does it work with?</div>
+      <div class="faq-a">BULLS v1 works on any exchange that supports TradingView charts — Binance, ByBit, BingX, OKX, Bitget, MEXC and more. You trade on the exchange, the indicator is on TradingView.</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q">Do I need a paid TradingView plan?</div>
+      <div class="faq-a">No. The free TradingView plan is enough to use BULLS v1. A Pro+ plan is recommended for more bar history and faster alerts, but not required to get started.</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q">Can I automate the signals?</div>
+      <div class="faq-a">Yes. TradingView alerts with webhooks can connect to WunderTrading ($20/mo) or 3Commas ($49/mo) for full automation on supported exchanges. Setup guide included.</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q">What timeframe is it optimized for?</div>
+      <div class="faq-a">15m is the primary and recommended timeframe. All backtest data (93 trades, 7.5 months) was generated on 15m. The indicator also works on 1H for fewer but higher quality signals.</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q">Why is the SL rate 45%?</div>
+      <div class="faq-a">15m crypto has frequent stop hunts — this is normal. The system is profitable because each win is worth 3.5R while each loss is only -1R. Even with 45% SL rate, EV is +0.48R per trade, which compounds to +$888 on $1,000 over 7.5 months.</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q">Which crypto pairs work best?</div>
+      <div class="faq-a">BTCUSD, ETHUSD, SOLUSDT, XRPUSD, BNBUSD all work well. All backtest data shown is from BTCUSD 15m. Settings vary slightly per coin — full settings guide included with purchase.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════ DISCLAIMER ═══════ -->
+
+<div class="disclaimer-sec">
+  <div class="disclaimer-inner">
+    <div class="disclaimer-title">⚠ RISK DISCLAIMER</div>
+    <p class="disclaimer-text">Trading cryptocurrencies involves substantial risk of loss. Past performance shown (7.5 months, 93 trades) does not guarantee future results. All statistics are from historical backtesting and may differ in live trading due to slippage and fees. Never risk money you cannot afford to lose. BULLS v1 is a technical analysis tool and does not constitute financial advice. You are solely responsible for your trading decisions.</p>
+  </div>
+</div>
+
+<!-- ═══════ FOOTER ═══════ -->
+
+<footer>
+  <div class="footer-logo">BULLS<span> v1</span></div>
+  <ul class="footer-links">
+    <li><a href="#results">Results</a></li>
+    <li><a href="#features">Features</a></li>
+    <li><a href="#pricing">Pricing</a></li>
+    <li><a href="#setup">Setup</a></li>
+    <li><a href="#faq">FAQ</a></li>
+    <li><a href="https://gumroad.com">Gumroad</a></li>
+  </ul>
+  <div class="footer-copy">© 2025 BULLS v1 · Not financial advice</div>
+</footer>
+
+<script>
+// Custom cursor
+const cursor = document.getElementById('cursor');
+const ring = document.getElementById('cursorRing');
+let mx = 0, my = 0, rx = 0, ry = 0;
+
+document.addEventListener('mousemove', e => {
+  mx = e.clientX; my = e.clientY;
+  cursor.style.left = mx + 'px';
+  cursor.style.top = my + 'px';
+});
+
+function animRing() {
+  rx += (mx - rx) * 0.12;
+  ry += (my - ry) * 0.12;
+  ring.style.left = rx + 'px';
+  ring.style.top = ry + 'px';
+  requestAnimationFrame(animRing);
+}
+animRing();
+
+document.querySelectorAll('a, button, .feat, .plan, .faq-q').forEach(el => {
+  el.addEventListener('mouseenter', () => {
+    cursor.style.transform = 'translate(-50%,-50%) scale(2)';
+    ring.style.width = '60px';
+    ring.style.height = '60px';
+  });
+  el.addEventListener('mouseleave', () => {
+    cursor.style.transform = 'translate(-50%,-50%) scale(1)';
+    ring.style.width = '36px';
+    ring.style.height = '36px';
+  });
+});
+
+// FAQ accordion
+document.querySelectorAll('.faq-q').forEach(q => {
+  q.addEventListener('click', () => {
+    const item = q.parentElement;
+    const isOpen = item.classList.contains('open');
+    document.querySelectorAll('.faq-item').forEach(i => i.classList.remove('open'));
+    if (!isOpen) item.classList.add('open');
+  });
+});
+
+// Scroll reveal
+const obs = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      e.target.style.opacity = '1';
+      e.target.style.transform = 'translateY(0)';
+    }
+  });
+}, { threshold: 0.1 });
+
+document.querySelectorAll('.feat, .bs, .plan, .step, .faq-item, .tl-item').forEach(el => {
+  el.style.opacity = '0';
+  el.style.transform = 'translateY(20px)';
+  el.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
+  obs.observe(el);
+});
+</script>
+
+</body>
+</html>
